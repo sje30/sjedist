@@ -92,8 +92,8 @@ sje.ranking <- function (distribs, method=1) {
   ## distribs is a 2-d array; each row is a different distribution.
   ## Compare row 1 with the other rows.
   ## Method: choice of function to compare two distributions:
-  ## 1: integrated distance.
-  ## 2: max absolute distance.
+  ## 1: max absolute distance.
+  ## 2: integrated distance.
   ##
   ## Simple test:
   ## raw <- matrix ( c( 1,2,1,4,  5,6,3,7,  7,2,4,8), nrow=3, ncol=4,byrow=T)
@@ -137,7 +137,7 @@ sje.ranking <- function (distribs, method=1) {
   list (p = p, r =r, score=score)
 }
 
-sje.findallranks <- function(exptl, sims)
+sje.findallranks <- function(exptl, sims, ...)
 {
   ## Find the ranking probability of the exptl versus several
   ## simulations for each of the distributions examined.  List
@@ -154,7 +154,7 @@ sje.findallranks <- function(exptl, sims)
     
     distribs[1,] <- exptldata
     for (i in 1:nreps) {distribs[i+1,] <- sims[[i]][[field]]}
-    s <- sje.ranking(distribs)
+    s <- sje.ranking(distribs, ...)
     ps[f] <- s$p
   }
   ps
@@ -208,6 +208,7 @@ plotsumresp <- function (s=NULL, r, title=NULL, ps=NULL,
 
   ##  G function.
   plot(sje.steps, r$g,
+       col="red", type="l",
        xlab = expression(paste("distance (", mu,"m)")),
        ylab = "G: cumulative probability of NND",axes=F)
   axis(1, labels=T, sje.steps.tics)
@@ -218,13 +219,15 @@ plotsumresp <- function (s=NULL, r, title=NULL, ps=NULL,
     if (show.means) lines(sje.steps, s$genv$m)
   }
   title(paste("m", r$note,
-              "e",  if (show.envelope) deparse(substitute(s)), title))
+              ##"e",  if (show.envelope) deparse(substitute(s)), title))
+              "e",  title))
   if (show.p) title(sub=paste("p ", ps[1]))
 
 
   ## F function.
   plot(sje.steps, r$f, xlab = expression(paste("distance (", mu,"m)")),
        ylab = "F: cumulative probability of distance to grid points",
+       col="red", type="l",
        axes=F)
   if (show.envelope) {
     lines(sje.steps, s$fenv$u);lines(sje.steps, s$fenv$l)
@@ -237,6 +240,7 @@ plotsumresp <- function (s=NULL, r, title=NULL, ps=NULL,
 
   ## L function.
   plot(sje.steps, r$l, xlab = expression(paste("distance (", mu,"m)")),
+       col="red", type="l",
        ylab = "L function", ylim=c(0, sje.steps.max), axes=F);
   if (show.envelope) {
     lines(sje.steps, s$lenv$u);lines(sje.steps, s$lenv$l)
@@ -252,6 +256,7 @@ plotsumresp <- function (s=NULL, r, title=NULL, ps=NULL,
 
   ## Voronoi area
   plot(sje.vorareax,
+       col="red", type="l",
        r$ahy,xlab = expression(paste("Voronoi area (",mu,m^2,")")),
        ylab = "cumulative probability", axes=F);
   if (show.envelope) {
@@ -265,6 +270,7 @@ plotsumresp <- function (s=NULL, r, title=NULL, ps=NULL,
 
   ## Internal angles
   plot(sje.ianglesx, r$ia$y, ylim=c(0,1),
+       col="red", type="l",
        xlab = expression(paste("internal angle (",
       degree,")")), ylab="cumulative probability", axes=F);
   axis(1, labels=T, c(seq(0,180,30)))
@@ -278,6 +284,7 @@ plotsumresp <- function (s=NULL, r, title=NULL, ps=NULL,
 
   ## Delauanay segment length.
   plot(sje.dellenx, r$dellencdf, ylim=c(0,1),
+       col="red", type="l",
        xlab = expression(paste("Delaunay segment length (",mu, m, ")")),
        ylab="cumulative probability", axes=F)
   if (show.envelope) {
