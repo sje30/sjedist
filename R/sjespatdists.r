@@ -18,6 +18,12 @@ sjespatdists <- function (hpts, xmin, xmax, ymin, ymax, note, plot=F) {
   wid <- xmax - xmin
   
   datapoly <- spoints( c(xmin,ymin, xmin, ymax,   xmax, ymax,  xmax,ymin))
+  ## Check to see that all points are within the polygon.
+  outside <- pip(hpts, datapoly, out=T, bound=TRUE)
+  if (dim(outside)[1]>0) {
+    print("some points outside polygon\n")
+    browser()
+  }
   
   npts <- length(hpts[,1])
   grid.pts <- gridpts(datapoly, npts) #Diggle+Gratton(84) suggest using ~npts.
