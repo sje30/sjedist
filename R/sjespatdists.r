@@ -294,7 +294,7 @@ plotsumresp <- function (s=NULL, r, title=NULL, ps=NULL,
     if (show.means) lines(sje.dellenx, s$dlenv$m)
   }
   axis(2, labels=T, c(seq(0,1,0.2)))
-  axis(1, labels=T, c(seq(0,sje.dellenmax,25)))
+  axis(1, labels=T, c(seq(0,sje.dellenmax,length=5)))
   if (show.p) title(sub=paste("p ", ps[6]))
 }
 
