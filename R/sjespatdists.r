@@ -56,25 +56,27 @@ sjespatdists <- function (hpts, xmin, xmax, ymin, ymax, note, plot=F) {
   ds <- hist(dellens, breaks=sje.dellenbins, plot=FALSE, freq=FALSE )
   dellencdf <- cumsum(ds$counts)/ sum(ds$counts)
 
+  ## Get NN distances from Voronoi information.
+  nn <- v$info[,3]
+  nn <- nn[nn>=0.0]
 
   res <- list(
-       note = note,
-       ##retnum = retnum,
-       pts = hpts,
-       xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,
-       ht = ht, wid = wid,
-       ##todo - do we need to return these next two distribs?
-       ##sje.steps.max = sje.steps.max,
-       ##steps = steps,
-       npts = npts,
-       g = g, f = f,
-       l = l,
-       v = v,
-       ahx = ahx, ahy = ahy, ia = ia,
-       iay = ia$y,                      #return separately so we can
+              note = note,
+              ##retnum = retnum,
+              pts = hpts,
+              xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,
+              ht = ht, wid = wid,
+              npts = npts,
+              g = g, f = f,
+              l = l,
+              v = v,
+              ahx = ahx, ahy = ahy, ia = ia,
+              areas=validareas,
+              iay = ia$y,                      #return separately so we can
                                         #easily test p-value.
-       dellencdf = dellencdf,
-       dellens = dellens
+              dellencdf = dellencdf,
+              dellens = dellens,
+              nn=nn
               )
 
   if (plot) 
