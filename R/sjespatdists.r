@@ -313,7 +313,7 @@ plot.spat.ri3 <- function(ri3) {
              cex=0.5,
              ylim=range(ri3),
              group.names=c("ON", "OFF", "ON+OFF"),
-             main="RI real (solid) + sim data",
+             main="",
              ylab="regularity index")
   
   median.sim <- apply(ri3[-1,], 2, median)
