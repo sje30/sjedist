@@ -7,6 +7,197 @@ library(sjedrp)
 ## Some useful constants
 density.um.mm2 <- 1e6                   #change density from um^2 to mm^2
 
+######################################################################
+## new functions.
+
+sje.vorarea <- function(pts, w, breaks, need.v=FALSE) {
+  ## MAX.AREA is the max area.
+  ## BREAKS are the histogram breaks to use.
+  ## NEED.V is TRUE if we want to use Voronoi information for
+  ## further processing.
+  v <- vorcr(pts[,1], pts[,2], w[1], w[2], w[3], w[4])
+  
+  ## Keep just the non-negative areas.
+  a <- v$info[,4]
+  validareas <- a[a >= 0.0]
+
+  vd.max <- breaks[ length(breaks)]
+  ## Use recyling to set an upper limit for the validareas.
+  validareas <- pmin(validareas, vd.max)
+  if (max(validareas) > vd.max) {
+    warning(paste("maximum area is", max(validareas)))
+  }
+  
+  fs <- hist(validareas, breaks=breaks, plot=FALSE, freq=FALSE )
+  ahy <- cumsum(fs$counts)/ sum(fs$counts)
+
+  if (!need.v)
+    v=NULL
+  res <- list(x=fs$mids, y=ahy, v=v)
+  res
+}
+
+sje.dellens <- function(pts, w, v=NULL, ds.breaks) {
+  ## If V is already calculated by vorarea, we can reuse that else we
+  ## tesselate using pts and w.
+  ## 
+  if (is.null(v)) {
+    v <- vorcr(pts[,1], pts[,2], w[1], w[2], w[3], w[4])
+  }
+  
+  ds.max <- ds.breaks[length(ds.breaks)]
+  dellens.acc <- vorcr.dellens(v, v$delacc)
+  dellens <- pmin(dellens.acc, ds.max)
+
+  ## Now bin the segments into a histogram.
+  ds <- hist(dellens, breaks=ds.breaks, plot=FALSE, freq=FALSE )
+  dellencdf <- cumsum(ds$counts)/ sum(ds$counts)
+
+  ## By naming 
+  res <- list (x=ds$mids, y=dellencdf)
+
+}
+
+sje.internalangles <- function(pts, w, v=NULL) {
+  ## Compute the internal angles of Voronoi polygon.  If V is already
+  ## known, we can re-use that.
+  if (is.null(v)) {
+    v <- vorcr(pts[,1], pts[,2], w[1], w[2], w[3], w[4])
+  }
+  
+  ia <- ianglesplot(v$iangles,show=F)
+}
+
+
+sjespatdists.v2 <- function (pts, w, note, plot=F, param=NULL) {
+  ## General analysis routine.
+  ## pts[npts,2] is a 2-d array of size NPTS * 2.
+  ## w is the bounding box window (xmin, xmax, ymin, ymax)
+  ## the boundary of the rectangular region where the points lie.
+  ## Assume pts already stores the data points, restricted to just inside the
+  ## analysis region.
+  ## New version
+  ## PARAM is a list of relevant parameters that we want to compute, together
+  ## with their arguments (e.g. distance params)
+
+  if( length(w) != 4)
+    stop(paste("w (", paste(w, collapse=' '), ") should be of length 4."))
+  else {
+    xmin=w[1]; xmax=w[2]; ymin=w[3]; ymax=w[4]; 
+  }
+  
+  ht <- ymax - ymin
+  wid <- xmax - xmin
+
+  steps <- param$steps
+  
+  datapoly <- spoints( c(xmin,ymin, xmin, ymax,   xmax, ymax,  xmax,ymin))
+  ## Check to see that all points are within the polygon.
+  outside <- pip(pts, datapoly, out=T, bound=TRUE)
+  if (dim(outside)[1]>0) {
+    print("some points outside polygon\n")
+    browser()
+  }
+
+  null.xylist <-  list(x=NULL, y=NULL)
+  npts <- length(pts[,1])
+  grid.pts <- gridpts(datapoly, npts) #Diggle+Gratton(84) suggest using ~npts.
+
+  if (!is.null(param$distribs$g))
+    g <- list(x=steps, y=Ghat(pts,steps))
+  else
+    g <- null.xylist
+
+  if (!is.null(param$distribs$f))
+    f <- list(x=steps, y=Fhat(pts,grid.pts,steps))
+  else
+    f <- null.xylist
+
+  if (!is.null(param$distribs$l)) {
+    l <- list(x=steps, y= sqrt(khat(pts, datapoly, steps)/pi))
+  } else {
+    l <- null.xylist
+  }
+
+  ##polymap(datapoly); pointmap(pts, add=T)#show the points.
+
+  ## Voronoi areas.
+  if (!is.null(param$distribs$vd)) {
+    vd <- sje.vorarea(pts, w, param$vd.breaks, need.v=TRUE)
+  } else{
+    vd <- list(x=NULL, y=NULL, v=NULL)
+  }
+
+                                 
+  ## Central angles:
+  if (!is.null(param$distribs$ia)) {
+    ia <- sje.internalangles(pts, w, vd$v)
+  } else {
+    ia <- null.xylist
+  }
+
+  ## Delaunay segment lengths. xxx
+  if (!is.null(param$distribs$ds)) {
+    ds <- sje.dellens(pts, w, vd$v, param$ds.breaks)
+  } else {
+    ds <- null.xylist
+  }
+
+  ## Get NN distances from Voronoi information.
+  ##nn <- a$v$info[,3];   nn <- nn[nn>=0.0]
+
+  ## Before returning results, remove Voronoi plot, don't think we
+  ## neeed to return that.
+  vd$v <- NULL
+  
+  res <- list(
+              note = note,
+              pts = pts,
+              w = w,
+              npts = npts,
+              g = g, f = f, l = l,
+              vd = vd,
+              ia = ia,
+              ds = ds,
+              param=param
+              )
+
+  class(res) <- "sjespatdists"
+
+  res
+
+}
+
+plot.sjespatdists <- function(res) {
+  ##  Plot the spatial distributions, class function.
+  distribs <- res$param$distribs
+
+  par(mfrow=c(2,3), bty='n')
+
+  if (!is.null(distribs$g))
+    plot(res$g, type='l', col='red', ylab='g')
+  
+  if (!is.null(distribs$f))
+    plot(res$f, type='l', col='red', ylab='f')
+
+  if (!is.null(distribs$l))
+    plot(res$l, type='l', col='red', ylab='l')
+
+  if (!is.null(distribs$vd))
+    plot(res$vd, type='l', col='red', ylab='VD')
+
+  if (!is.null(distribs$ia))
+    plot(res$ia, type='l', col='red', ylab='IA')
+
+  if (!is.null(distribs$ds))
+    plot(res$ds, type='l', col='red', ylab='DS')
+
+}
+
+
+######################################################################
+## older functions.
+
 sjespatdists <- function (hpts, xmin, xmax, ymin, ymax, note, plot=F) {
   ## General analysis routine.
   ## hpts[npts,2] is a 2-d array of size NPTS * 2. xmin,ymin, xmax, ymax set
@@ -91,7 +282,6 @@ sjespatdists <- function (hpts, xmin, xmax, ymin, ymax, note, plot=F) {
   res
 
 }
-
 
 ## Ranking and summary functions
 
@@ -276,7 +466,7 @@ plotsumresp <- function (s=NULL, r, title=NULL, ps=NULL,
   axis(2, labels=T, c(seq(0,1,0.2)))
   
 
-  ## Internal angles
+  ## Internal angles.
   plot(sje.ianglesx, r$ia$y, ylim=c(0,1),
        col="red", type="l",
        xlab = expression(paste("internal angle (",
