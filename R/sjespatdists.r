@@ -195,6 +195,221 @@ plot.sjespatdists <- function(res) {
 }
 
 
+new.dist.arr <- function( one.dist, nsims) {
+  ## NSIMS is the number of simulations planned.
+  ## Fill up the arrays and then go for it!
+  
+  distribs <- one.dist$param$distribs
+  null.distribs <- sapply(distribs, is.null)
+  if ( any(null.distribs) ){
+    distribs <- distribs[ - which(null.distribs)]   #remove NULL elements
+  }
+      
+  arrs <- list()
+  for (name in names(distribs)) {
+
+    this.distrib <- one.dist[[name]]    #is a list with (x,y) components.
+    mat <- matrix(0, length(this.distrib$y), nrow=nsims+1)
+    mat[1,] <- this.distrib$y
+    colnames(mat) <- this.distrib$x
+    attr(mat, "name") <- name
+    new <- list( mat); names(new) <- name
+    arrs <- c(arrs, new)
+  }
+
+  list(
+       get = function() {
+         arrs
+       },
+       set.row = function(sim.dist, row) {
+         ## set one simulation row.
+         for (name in names(arrs)) {
+           this.distrib <- sim.dist[[name]]
+           arrs[[name]][row,] <<- this.distrib$y
+         }
+       }
+       ,
+       ranks = function() {
+         ## Compute the ranking of each matrix.
+         sapply(arrs, ranking)
+       }
+       ,
+       plot = function() {
+         ## Plot each matrix.
+         sapply(arrs, plot.spatarray)
+       }
+       ,
+       clear.sim = function() {
+         ## Remove the simulations from each matrix.
+         ## Not necessary usually, but tidy.
+         for (name in names(arrs)) {
+           arrs[[name]][-1,] <<- 0
+         }
+       }
+       )
+}
+
+plot.spatarray <- function(arr, r=NULL) {
+  ## Plot a spatial distribution (K, F, G).
+  ## Real data is shown in red; simulation envelope in black.
+  if (is.null(r)) {
+    r <- colnames(arr)
+  }
+  ylab <- attributes(arr)$name
+  if (is.null(ylab))
+    ylab <- deparse(substitute(arr))
+  plot(r, arr[1,], col='red', type='l',
+       main=ranking(arr), ylab=ylab)
+  lines(r, apply(arr[-1,], 2, min), lty=1)
+  lines(r, apply(arr[-1,], 2, max), lty=1)
+  
+}
+
+ranking <- function(arr) {
+  ## Evaluate fit of row 1 (the real data) with remaining rows (simulations)
+  ## using equations 6.3--6.5 from (Diggle, 2002, page 89).
+  n.s <- nrow(arr)
+  u <- rep(0, n.s)
+  for (i in 1:n.s) {
+    ave.i <- apply( arr[-i,], 2, sum) / (n.s - 1)
+    u[i] <- sum((ave.i - arr[i,])^2)
+    ##u[i] <- max( abs( ave.i - arr[i,]) )
+  }
+  signif( (rank(u)[1])/n.s, 5)
+}
+
+sjespatdists.biv <- function (pts1, pts2, w, note, plot=F, param=NULL) {
+  ## General analysis routine, bivariate version.
+  ## pts[npts,2] is a 2-d array of size NPTS * 2.
+  ## w is the bounding box window (xmin, xmax, ymin, ymax)
+  ## the boundary of the rectangular region where the points lie.
+  ## Assume pts already stores the data points, restricted to just inside the
+  ## analysis region.
+  ## New version
+  ## PARAM is a list of relevant parameters that we want to compute, together
+  ## with their arguments (e.g. distance params)
+
+  if( length(w) != 4)
+    stop(paste("w (", paste(w, collapse=' '), ") should be of length 4."))
+  else {
+    xmin=w[1]; xmax=w[2]; ymin=w[3]; ymax=w[4]; 
+  }
+  
+  ht <- ymax - ymin
+  wid <- xmax - xmin
+
+  steps <- param$steps
+  pts0 <- rbind(pts1, pts2)
+  
+  datapoly <- spoints( c(xmin,ymin, xmin, ymax,   xmax, ymax,  xmax,ymin))
+  ## Check to see that all points are within the polygon.
+  outside <- pip(pts0, datapoly, out=T, bound=TRUE)
+  if (dim(outside)[1]>0) {
+    print("some points outside polygon\n")
+    browser()
+  }
+
+  null.xylist <-  list(x=NULL, y=NULL)
+
+  g0 <- g1 <- g2 <- null.xylist
+  if (!is.null(param$distribs$g0))
+    g0 <- list(x=steps, y=Ghat(pts0,steps))
+  
+  if (!is.null(param$distribs$g1))
+    g1 <- list(x=steps, y=Ghat(pts1,steps))
+  
+  if (!is.null(param$distribs$g2))
+    g2 <- list(x=steps, y=Ghat(pts2,steps))
+
+
+  f0 <- f1 <- f2 <- null.xylist
+  if (!is.null(param$distribs$f0))
+    f0 <- list(x=steps, y=Fhat(pts0, gridpts(datapoly, dim(pts0)[1]),steps))
+
+  if (!is.null(param$distribs$f1))
+    f1 <- list(x=steps, y=Fhat(pts1, gridpts(datapoly, dim(pts1)[1]),steps))
+  
+  if (!is.null(param$distribs$f2))
+    f2 <- list(x=steps, y=Fhat(pts2, gridpts(datapoly, dim(pts2)[1]),steps))
+
+  l0 <- l1 <- l2 <- null.xylist
+  if (!is.null(param$distribs$l0))
+    l0 <- list(x=steps, y= sqrt(khat(pts0, datapoly, steps)/pi))
+    
+  if (!is.null(param$distribs$l1))
+    l1 <- list(x=steps, y= sqrt(khat(pts1, datapoly, steps)/pi))
+
+  if (!is.null(param$distribs$l2))
+    l2 <- list(x=steps, y= sqrt(khat(pts2, datapoly, steps)/pi))
+
+
+  ## Voronoi areas.
+  vd0 <- vd1 <- vd2 <- null.xylist
+  if (!is.null(param$distribs$vd0))
+    vd0 <- sje.vorarea(pts0, w, param$vd0.breaks, need.v=TRUE)
+
+  if (!is.null(param$distribs$vd1))
+    vd1 <- sje.vorarea(pts1, w, param$vd1.breaks, need.v=TRUE)
+
+  if (!is.null(param$distribs$vd2))
+    vd2 <- sje.vorarea(pts2, w, param$vd1.breaks, need.v=TRUE)
+
+                                 
+  ## Central angles:
+  ia0 <- ia1 <- ia2 <- null.xylist
+  if (!is.null(param$distribs$ia0))
+    ia0 <- sje.internalangles(pts0, w, vd0$v)
+
+  if (!is.null(param$distribs$ia1)) 
+    ia1 <- sje.internalangles(pts1, w, vd1$v)
+
+  if (!is.null(param$distribs$ia2))
+    ia2 <- sje.internalangles(pts2, w, vd2$v)
+
+
+  ## Delaunay segment lengths.
+  ds0 <- ds1 <- ds2 <- null.xylist
+  if (!is.null(param$distribs$ds0))
+    ds0 <- sje.dellens(pts0, w, vd0$v, param$ds0.breaks)
+
+  if (!is.null(param$distribs$ds1))
+    ds1 <- sje.dellens(pts1, w, vd1$v, param$ds1.breaks)
+
+  if (!is.null(param$distribs$ds2))
+    ds2 <- sje.dellens(pts2, w, vd2$v, param$ds1.breaks)
+
+  ## Before returning results, remove Voronoi plot, don't think we
+  ## neeed to return that.
+  vd0$v <- NULL;  vd1$v <- NULL; vd2$v <- NULL
+  
+  res <- list(
+              note = note,
+              pts0 = pts0, pts1=pts1, pts2=pts2,
+              w = w,
+              g0=g0, g1=g1, g2=g2,
+              f0=f0, f1=f1, f2=f2,
+              l0=l0, l1=l1, l2=l2,
+              vd0=vd0, vd1=vd1, vd2=vd2,
+              ia0=ia0, ia1=ia1, ia2=ia2,
+              ds0=ds0, ds1=ds1, ds2=ds2,
+              param=param
+              )
+
+  class(res) <- "sjespatdistsbiv"
+
+  res
+}
+
+plot.sjespatdistsbiv <- function(x) {
+
+  distribs <- names(x$param$distribs)
+  print(distribs)
+  for (distrib in distribs) {
+    if (!is.null(x$param$distribs[[distrib]]))
+      plot(x[[distrib]], xlab='', ylab=distrib, type='l', col='red')
+  }
+}
+
 ######################################################################
 ## older functions.
 
