@@ -4,6 +4,8 @@ library(sjevor)
 library(sjedmin)
 library(sjedrp)
 
+
+source("~/mosaics/beta_rgc/count.opp.R")
 ## Some useful constants
 density.um.mm2 <- 1e6                   #change density from um^2 to mm^2
 
@@ -213,6 +215,13 @@ new.dist.arr <- function( one.dist, nsims) {
     mat[1,] <- this.distrib$y
     colnames(mat) <- this.distrib$x
     attr(mat, "name") <- name
+    ## Set the class for the matrix.
+    class(mat) <- "spat.array"
+    if(name == "opp")
+      class(mat) <- "spat.opp"
+    if(name == "ri3")
+      class(mat) <- "spat.ri3"
+    
     new <- list( mat); names(new) <- name
     arrs <- c(arrs, new)
   }
@@ -236,7 +245,7 @@ new.dist.arr <- function( one.dist, nsims) {
        ,
        plot = function() {
          ## Plot each matrix.
-         sapply(arrs, plot.spatarray)
+         sapply(arrs, plot)
        }
        ,
        clear.sim = function() {
@@ -249,7 +258,7 @@ new.dist.arr <- function( one.dist, nsims) {
        )
 }
 
-plot.spatarray <- function(arr, r=NULL) {
+plot.spat.array <- function(arr, r=NULL) {
   ## Plot a spatial distribution (K, F, G).
   ## Real data is shown in red; simulation envelope in black.
   if (is.null(r)) {
@@ -258,10 +267,61 @@ plot.spatarray <- function(arr, r=NULL) {
   ylab <- attributes(arr)$name
   if (is.null(ylab))
     ylab <- deparse(substitute(arr))
-  plot(r, arr[1,], col='red', type='l',
+  plot(r, arr[1,], col='red', type='l', bty='n',
        main=ranking(arr), ylab=ylab)
   lines(r, apply(arr[-1,], 2, min), lty=1)
   lines(r, apply(arr[-1,], 2, max), lty=1)
+  lines(r, apply(arr[-1,], 2, mean), lty=1)
+  
+}
+
+
+plot.spat.opp <- function(arr) {
+  ## Plot the fraction of opposites
+  stripchart(list(arr[-1,1], arr[-1,2], arr[-1,3], arr[-1,4]),
+             method="jitter", pch=19, vertical=TRUE,
+             ylim=c(min(arr), 1), 
+             group.names=c("1", "2", "3", "ave"),
+             main="% of opposites", ylab="percent", cex=0.5)
+  
+  dx <- 0.3; i <- 1:4
+  segments(i-dx, arr[1,], i+dx, arr[1,], lwd=0.6, col='red')
+  median.sim <- apply(arr[-1,], 2, median)
+  segments(i-dx, median.sim, i+dx, median.sim, lwd=0.6, lty=2)
+
+}
+
+## Bivariate regularity indexes.
+calc.ri3 <- function(on, of, w) {
+  ## Calculate the regularity index of the ON, OFF and ON+OFF population.
+  xmin <- w[1]; xmax <- w[2];
+  ymin <- w[3]; ymax <- w[4];
+  v.n <- vorcr(on[,1], on[,2], xmin, xmax, ymin, ymax)
+  v.f <- vorcr(of[,1], of[,2], xmin, xmax, ymin, ymax)
+  b <- rbind(on, of)
+  v.0 <- vorcr( b[,1],  b[,2], xmin, xmax, ymin, ymax)
+
+  y <- c(v.n$cr, v.f$cr, v.0$cr)
+  x <- c("ON", "OFF", "ON+OFF")
+  res <- list(x=x, y=y)
+}
+
+plot.spat.ri3 <- function(ri3) {
+  ## Plot the regularity indexes.
+  res <- list(on=ri3[-1,1], of=ri3[-1,2],on.off=ri3[-1,3])
+  stripchart(res, vert=T, pch=19, method="jitter",
+             cex=0.5,
+             ylim=range(ri3),
+             group.names=c("ON", "OFF", "ON+OFF"),
+             main="RI real (solid) + sim data",
+             ylab="regularity index")
+  
+  median.sim <- apply(ri3[-1,], 2, median)
+  i <- 1:3; dx <- 0.3;
+  segments(i-dx, ri3[1,], i+dx, ri3[1,], lwd=0.6, col='red')
+  segments(i-dx, median.sim, i+dx, median.sim, lwd=0.6, lty=2)
+  ##legend(x=1, y=3.5, lty=c(1,2),
+  ##       legend=c("experimental RI", "median RI of sims"))
   
 }
 
@@ -279,7 +339,7 @@ ranking <- function(arr) {
 }
 
 sjespatdists.biv <- function (pts1, pts2, w, note, plot=F, param=NULL) {
-  ## General analysis routine, bivariate version.
+  ## GENERAL ANALYSIS ROUTINE, BIVARIATE VERSION.
   ## pts[npts,2] is a 2-d array of size NPTS * 2.
   ## w is the bounding box window (xmin, xmax, ymin, ymax)
   ## the boundary of the rectangular region where the points lie.
@@ -332,7 +392,7 @@ sjespatdists.biv <- function (pts1, pts2, w, note, plot=F, param=NULL) {
   if (!is.null(param$distribs$f2))
     f2 <- list(x=steps, y=Fhat(pts2, gridpts(datapoly, dim(pts2)[1]),steps))
 
-  l0 <- l1 <- l2 <- null.xylist
+  l0 <- l1 <- l2 <- l12 <- null.xylist
   if (!is.null(param$distribs$l0))
     l0 <- list(x=steps, y= sqrt(khat(pts0, datapoly, steps)/pi))
     
@@ -341,6 +401,9 @@ sjespatdists.biv <- function (pts1, pts2, w, note, plot=F, param=NULL) {
 
   if (!is.null(param$distribs$l2))
     l2 <- list(x=steps, y= sqrt(khat(pts2, datapoly, steps)/pi))
+
+  if (!is.null(param$distribs$l12))
+    l12 <- list(x=steps, y=sqrt(k12hat(pts1, pts2, datapoly, steps)/pi))
 
 
   ## Voronoi areas.
@@ -381,6 +444,18 @@ sjespatdists.biv <- function (pts1, pts2, w, note, plot=F, param=NULL) {
   ## Before returning results, remove Voronoi plot, don't think we
   ## neeed to return that.
   vd0$v <- NULL;  vd1$v <- NULL; vd2$v <- NULL
+
+
+  ## Could reuse v0 here.  Or should pass in w.
+  opp <- NULL
+  if (!is.null(param$distribs$opp)) {
+    opp <- count.opp(pts1, pts2, w)$res
+  }
+
+  ri3 <- NULL
+  if (!is.null(param$distribs$ri3)) {
+    ri3 <- calc.ri3(pts1, pts2, w)
+  }
   
   res <- list(
               note = note,
@@ -388,10 +463,11 @@ sjespatdists.biv <- function (pts1, pts2, w, note, plot=F, param=NULL) {
               w = w,
               g0=g0, g1=g1, g2=g2,
               f0=f0, f1=f1, f2=f2,
-              l0=l0, l1=l1, l2=l2,
+              l0=l0, l1=l1, l2=l2, l12=l12,
               vd0=vd0, vd1=vd1, vd2=vd2,
               ia0=ia0, ia1=ia1, ia2=ia2,
               ds0=ds0, ds1=ds1, ds2=ds2,
+              opp=opp, ri3=ri3,
               param=param
               )
 
