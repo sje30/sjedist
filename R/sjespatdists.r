@@ -258,17 +258,21 @@ new.dist.arr <- function( one.dist, nsims) {
        )
 }
 
-plot.spat.array <- function(arr, r=NULL) {
+plot.spat.array <- function(arr, r=NULL, ylab, ...) {
   ## Plot a spatial distribution (K, F, G).
   ## Real data is shown in red; simulation envelope in black.
   if (is.null(r)) {
     r <- colnames(arr)
   }
-  ylab <- attributes(arr)$name
-  if (is.null(ylab))
-    ylab <- deparse(substitute(arr))
+  if (missing (ylab)) {
+    ylab <- attributes(arr)$name
+    if (is.null(ylab))
+      ylab <- deparse(substitute(arr))
+  }
   plot(r, arr[1,], col='red', type='l', bty='n',
-       main=ranking(arr), ylab=ylab)
+       main=ranking(arr), 
+       ylab=ylab, ...)
+  ##title(main= paste("p =", ranking(arr)), line=-1)
   lines(r, apply(arr[-1,], 2, min), lty=1)
   lines(r, apply(arr[-1,], 2, max), lty=1)
   lines(r, apply(arr[-1,], 2, mean), lty=1)
@@ -276,16 +280,21 @@ plot.spat.array <- function(arr, r=NULL) {
 }
 
 
-plot.spat.opp <- function(arr) {
+plot.spat.opp <- function(arr,cex=0.5, real.col='black', ...) {
   ## Plot the fraction of opposites
   stripchart(list(arr[-1,1], arr[-1,2], arr[-1,3], arr[-1,4]),
              method="jitter", pch=19, vertical=TRUE,
              ylim=c(min(arr), 1), 
-             group.names=c("1", "2", "3", "ave"),
-             main="% of opposites", ylab="percent", cex=0.5)
-  
+             ##group.names=c(expression(1^{st}), "2", "3", "all"),
+             group.names=rep("", 4),
+             ylab="fraction opposite type", cex=cex, ...)
+
+  axis(1, at=1:4, labels=c(expression(1^{st}),
+                    expression(2^{nd}),
+                    expression(3^{rd}),
+                    "all"))
   dx <- 0.3; i <- 1:4
-  segments(i-dx, arr[1,], i+dx, arr[1,], lwd=0.6, col='red')
+  segments(i-dx, arr[1,], i+dx, arr[1,], lwd=0.6, col=real.col)
   median.sim <- apply(arr[-1,], 2, median)
   segments(i-dx, median.sim, i+dx, median.sim, lwd=0.6, lty=2)
 
@@ -306,19 +315,20 @@ calc.ri3 <- function(on, of, w) {
   res <- list(x=x, y=y)
 }
 
-plot.spat.ri3 <- function(ri3) {
+plot.spat.ri3 <- function(ri3, cex=0.5, ylim=range(ri3),
+                          real.col = 'red', ...) {
   ## Plot the regularity indexes.
   res <- list(on=ri3[-1,1], of=ri3[-1,2],on.off=ri3[-1,3])
   stripchart(res, vert=T, pch=19, method="jitter",
-             cex=0.5,
-             ylim=range(ri3),
+             cex=cex,
+             ylim=ylim,
              group.names=c("ON", "OFF", "ON+OFF"),
              main="",
              ylab="regularity index")
   
   median.sim <- apply(ri3[-1,], 2, median)
   i <- 1:3; dx <- 0.3;
-  segments(i-dx, ri3[1,], i+dx, ri3[1,], lwd=0.6, col='red')
+  segments(i-dx, ri3[1,], i+dx, ri3[1,], lwd=0.6, col=real.col)
   segments(i-dx, median.sim, i+dx, median.sim, lwd=0.6, lty=2)
   ##legend(x=1, y=3.5, lty=c(1,2),
   ##       legend=c("experimental RI", "median RI of sims"))
@@ -358,7 +368,26 @@ sjespatdists.biv <- function (pts1, pts2, w, note, plot=F, param=NULL) {
   ht <- ymax - ymin
   wid <- xmax - xmin
 
+
+  ## This routine was written for analysing bivariate patterns where both
+  ## sets were of roughtly the same size.  (e.g. on and off RGCs occur in
+  ## roughly equal numbers). However, sometimes we have different sizes
+  ## in the two types of cell, (e.g. horizontal cells).
+
+  
+  either <- function(v2, v1) {
+    ## If v2 is not null, return v2, else return v1.
+    ## Simple helper function for allowing type 1 and type 2 axes to differ.
+    if (is.null(v2))
+      v1
+    else
+      v2
+  }
+
+  
   steps <- param$steps
+  steps2 <- either(param$steps2,steps)
+
   pts0 <- rbind(pts1, pts2)
   
   datapoly <- spoints( c(xmin,ymin, xmin, ymax,   xmax, ymax,  xmax,ymin))
@@ -369,6 +398,7 @@ sjespatdists.biv <- function (pts1, pts2, w, note, plot=F, param=NULL) {
     browser()
   }
 
+  
   null.xylist <-  list(x=NULL, y=NULL)
 
   g0 <- g1 <- g2 <- null.xylist
@@ -384,13 +414,13 @@ sjespatdists.biv <- function (pts1, pts2, w, note, plot=F, param=NULL) {
 
   f0 <- f1 <- f2 <- null.xylist
   if (!is.null(param$distribs$f0))
-    f0 <- list(x=steps, y=Fhat(pts0, gridpts(datapoly, dim(pts0)[1]),steps))
+    f0 <- list(x=steps2, y=Fhat(pts0, gridpts(datapoly, dim(pts0)[1]),steps2))
 
   if (!is.null(param$distribs$f1))
-    f1 <- list(x=steps, y=Fhat(pts1, gridpts(datapoly, dim(pts1)[1]),steps))
+    f1 <- list(x=steps2, y=Fhat(pts1, gridpts(datapoly, dim(pts1)[1]),steps2))
   
   if (!is.null(param$distribs$f2))
-    f2 <- list(x=steps, y=Fhat(pts2, gridpts(datapoly, dim(pts2)[1]),steps))
+    f2 <- list(x=steps2, y=Fhat(pts2, gridpts(datapoly, dim(pts2)[1]),steps2))
 
   l0 <- l1 <- l2 <- l12 <- null.xylist
   if (!is.null(param$distribs$l0))
@@ -400,7 +430,7 @@ sjespatdists.biv <- function (pts1, pts2, w, note, plot=F, param=NULL) {
     l1 <- list(x=steps, y= sqrt(khat(pts1, datapoly, steps)/pi))
 
   if (!is.null(param$distribs$l2))
-    l2 <- list(x=steps, y= sqrt(khat(pts2, datapoly, steps)/pi))
+    l2 <- list(x=steps2, y= sqrt(khat(pts2, datapoly, steps2)/pi))
 
   if (!is.null(param$distribs$l12))
     l12 <- list(x=steps, y=sqrt(k12hat(pts1, pts2, datapoly, steps)/pi))
@@ -415,7 +445,8 @@ sjespatdists.biv <- function (pts1, pts2, w, note, plot=F, param=NULL) {
     vd1 <- sje.vorarea(pts1, w, param$vd1.breaks, need.v=TRUE)
 
   if (!is.null(param$distribs$vd2))
-    vd2 <- sje.vorarea(pts2, w, param$vd1.breaks, need.v=TRUE)
+    vd2 <- sje.vorarea(pts2, w, either(param$vd2.breaks,param$vd1.breaks),
+                                       need.v=TRUE)
 
                                  
   ## Central angles:
@@ -439,7 +470,8 @@ sjespatdists.biv <- function (pts1, pts2, w, note, plot=F, param=NULL) {
     ds1 <- sje.dellens(pts1, w, vd1$v, param$ds1.breaks)
 
   if (!is.null(param$distribs$ds2))
-    ds2 <- sje.dellens(pts2, w, vd2$v, param$ds1.breaks)
+    ds2 <- sje.dellens(pts2, w, vd2$v,
+                       either(param$ds2.breaks,param$ds1.breaks))
 
   ## Before returning results, remove Voronoi plot, don't think we
   ## neeed to return that.
