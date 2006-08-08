@@ -297,7 +297,13 @@ plot.spat.array <- function(arr, r=NULL, ylab, ...) {
   lines(r, apply(arr[-1,], 2, min), lty=1)
   lines(r, apply(arr[-1,], 2, max), lty=1)
   lines(r, apply(arr[-1,], 2, mean), lty=1)
-  
+
+  ## The following section is new.
+  if (substring(ylab,1,1) == "l") {
+    ## this is an L function.
+    max.r <- max(as.numeric(r))
+    segments(0, 0, max.r, max.r, lwd=1, lty=2)
+  }
 }
 
 
@@ -430,8 +436,10 @@ sjespatdists.biv <- function (pts1, pts2, w, note, plot=F, param=NULL) {
   }
 
   
-  steps <- param$steps
-  steps2 <- either(param$steps2,steps)
+  steps   <- param$steps
+  steps2  <- either(param$steps2,steps)
+  steps12 <- either(param$steps12,steps)
+  steps0  <- either(param$steps0,steps)
 
   pts0 <- rbind(pts1, pts2)
   
@@ -469,7 +477,7 @@ sjespatdists.biv <- function (pts1, pts2, w, note, plot=F, param=NULL) {
 
   l0 <- l1 <- l2 <- l12 <- null.xylist
   if (!is.null(param$distribs$l0))
-    l0 <- list(x=steps, y= sqrt(khat(pts0, datapoly, steps)/pi))
+    l0 <- list(x=steps0, y= sqrt(khat(pts0, datapoly, steps0)/pi))
     
   if (!is.null(param$distribs$l1))
     l1 <- list(x=steps, y= sqrt(khat(pts1, datapoly, steps)/pi))
@@ -478,7 +486,7 @@ sjespatdists.biv <- function (pts1, pts2, w, note, plot=F, param=NULL) {
     l2 <- list(x=steps2, y= sqrt(khat(pts2, datapoly, steps2)/pi))
 
   if (!is.null(param$distribs$l12))
-    l12 <- list(x=steps, y=sqrt(k12hat(pts1, pts2, datapoly, steps)/pi))
+    l12 <- list(x=steps12, y=sqrt(k12hat(pts1, pts2, datapoly, steps12)/pi))
 
 
   ## Voronoi areas.
