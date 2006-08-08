@@ -4,8 +4,9 @@ library(sjevor)
 library(sjedmin)
 library(sjedrp)
 
+## Originally in count.opp.R, now duplicated.
+##source("~/mosaics/beta_rgc/count.opp.R")
 
-source("~/mosaics/beta_rgc/count.opp.R")
 ## Some useful constants
 density.um.mm2 <- 1e6                   #change density from um^2 to mm^2
 
@@ -71,7 +72,7 @@ sje.internalangles <- function(pts, w, v=NULL) {
 }
 
 
-sjespatdists.v2 <- function (pts, w, note, plot=F, param=NULL) {
+sjespatdists <- function (pts, w, note, plot=F, param=NULL) {
   ## General analysis routine.
   ## pts[npts,2] is a 2-d array of size NPTS * 2.
   ## w is the bounding box window (xmin, xmax, ymin, ymax)
@@ -81,6 +82,16 @@ sjespatdists.v2 <- function (pts, w, note, plot=F, param=NULL) {
   ## New version
   ## PARAM is a list of relevant parameters that we want to compute, together
   ## with their arguments (e.g. distance params)
+  ## Functions (extra params needed in brackets)
+  ## g (steps)
+  ## f (steps)
+  ## l (steps)
+  ## vd (vd.breaks)
+  ## ds (ds.breaks)
+
+  ## steps - vector of distances.
+  ## vd, ds - like steps, but for Voronoi and Delaunay information.
+  
 
   if( length(w) != 4)
     stop(paste("w (", paste(w, collapse=' '), ") should be of length 4."))
@@ -130,7 +141,13 @@ sjespatdists.v2 <- function (pts, w, note, plot=F, param=NULL) {
     vd <- list(x=NULL, y=NULL, v=NULL)
   }
 
-                                 
+  if (!is.null(param$distribs$ri)) {
+    ri <- calc.ri(pts, w)
+  } else{
+    ri <- NULL
+  }
+
+
   ## Central angles:
   if (!is.null(param$distribs$ia)) {
     ia <- sje.internalangles(pts, w, vd$v)
@@ -161,6 +178,7 @@ sjespatdists.v2 <- function (pts, w, note, plot=F, param=NULL) {
               vd = vd,
               ia = ia,
               ds = ds,
+              ri = ri,
               param=param
               )
 
@@ -221,7 +239,10 @@ new.dist.arr <- function( one.dist, nsims) {
       class(mat) <- "spat.opp"
     if(name == "ri3")
       class(mat) <- "spat.ri3"
-    
+
+    if(name == "ri")
+      class(mat) <- "spat.ri"
+
     new <- list( mat); names(new) <- name
     arrs <- c(arrs, new)
   }
@@ -300,6 +321,13 @@ plot.spat.opp <- function(arr,cex=0.5, real.col='black', ...) {
 
 }
 
+calc.ri <- function(pts, w) {
+  ## Return the regularity index of PTS with bounding box W.  This is
+  ## potentially wasteful in that Voronoi information is computed
+  ## twice (once here, and once by sjespatdists).
+  list(x=1, y=vorcr2(pts, w)$cr)
+}
+
 ## Bivariate regularity indexes.
 calc.ri3 <- function(on, of, w) {
   ## Calculate the regularity index of the ON, OFF and ON+OFF population.
@@ -332,6 +360,23 @@ plot.spat.ri3 <- function(ri3, cex=0.5, ylim=range(ri3),
   segments(i-dx, median.sim, i+dx, median.sim, lwd=0.6, lty=2)
   ##legend(x=1, y=3.5, lty=c(1,2),
   ##       legend=c("experimental RI", "median RI of sims"))
+  
+}
+
+plot.spat.ri <- function(ri, cex=0.5, ylim=range(ri),
+                          real.col = 'red', ...) {
+  ## Plot the regularity index for univariate pattern.
+  res <- ri[-1,1]
+  stripchart(res, vert=T, pch=19, method="jitter",
+             cex=cex,
+             ylim=ylim,
+             main="",
+             ylab="regularity index")
+  
+  median.sim <- median(res)
+  i <- 1:3; dx <- 0.3;
+  segments(i-dx, ri[1,], i+dx, ri[1,], lwd=0.6, col=real.col)
+  segments(i-dx, median.sim, i+dx, median.sim, lwd=0.6, lty=2)
   
 }
 
@@ -518,10 +563,85 @@ plot.sjespatdistsbiv <- function(x) {
   }
 }
 
+count.opp <- function(a, b, w=NULL, which.labels=0, plot=FALSE,
+                      debug=FALSE) {
+  ## A, B are matrices of the cell points
+  ## w is the bounding box of the points.
+  
+  labels <- c( rep(1, dim(a)[1]), rep(2, dim(b)[1]) )
+
+  ## combined matrix of all points.
+  c0 <- rbind(a, b)
+  c0.n <- dim(c0)[1]
+
+  if (is.null(w)) {
+    w <- real(4)
+    w[1:2] <- range(c0[,1]); w[3:4] <- range(c0[,2])
+  }
+  
+  v0 <- vorcr( c0[,1], c0[,2], w[1], w[2], w[3], w[4])
+              
+  if (plot) {
+    plot(v0, type='n')
+    text(c0, cex=0.8, col=ifelse(labels==1, "green", "orangered"))
+  }
+    
+  ## Find the neighs, and convert -1 to NA
+  neighs <- v0$neighs
+  neighs[which(neighs == -1, arr.ind=T)] <- NA
+
+  ## Also remove any neighbour information for cells that we want to ignore.
+  if (which.labels > 0) {
+    neighs[-which(labels==which.labels),] <- NA
+  }
+  
+  ## convert to 1/2 for type.
+  opps.label <- t(apply(neighs, 1, function(x) { labels[x]}))
+  opps.same <- t(apply(cbind(labels, opps.label), 1,
+                       function(x) {x[1] == x[-1]}))
+  counts.opp <- apply(opps.same, 2, function(c) { length(which(c==FALSE))})
+  
+  valid.neighs <- apply(opps.same, 2, function(c) { length(which(!is.na(c)))})
+  
+  opps.percent <- counts.opp / valid.neighs
+  names(opps.percent) <- paste("nn", 1:length(opps.percent), sep='')
+  
+  ## For each of nth neighbours, print % of cells that were opposite class.
+  ## e.g. the 2nd element shows the % of 2nd nearest neighbours that
+  ## are opposite type.
+  if (debug)
+    print(opps.percent)
+
+  ## Now check each row, to see how many per cell are opposite type.
+  opps.cell <-  apply(opps.same, 1, function(c) { length(which(c==FALSE))})
+
+  cell.opps.info <- cbind(1:length(labels),
+                          v0$numneighs, 
+                        opps.cell,
+                          opps.cell / v0$numneighs
+                          )
+
+  ## remove rows that we don't want.
+  cell.opps.info <- cell.opps.info[ - which(opps.cell == 0),]
+  colnames(cell.opps.info) <- c("id", "num neighs", "num opp", "percent opp")
+  ## should not just take mean since this distribution is not normal.
+  summary(cell.opps.info)
+
+  ## although better to compute median, it produces more stratified results
+  ## than the mean.
+  mean.nn <- mean(cell.opps.info[,4])
+  res <- list(x=c(1,2,3,0), y=c(opps.percent[1:3], mean.nn))
+  list(res=res, other=list(
+                  v0=v0,
+                  cell.opps.info = cell.opps.info,
+                  opps.percent=opps.percent,
+                  nvalid=dim(cell.opps.info)[1]))
+}
+
 ######################################################################
 ## older functions.
 
-sjespatdists <- function (hpts, xmin, xmax, ymin, ymax, note, plot=F) {
+sjespatdists.old <- function (hpts, xmin, xmax, ymin, ymax, note, plot=F) {
   ## General analysis routine.
   ## hpts[npts,2] is a 2-d array of size NPTS * 2. xmin,ymin, xmax, ymax set
   ## the boundary of the rectangular region where the points lie.
