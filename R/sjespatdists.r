@@ -488,7 +488,6 @@ sjespatdists.biv <- function (pts1, pts2, w, note, plot=F, param=NULL) {
   if (!is.null(param$distribs$l12))
     l12 <- list(x=steps12, y=sqrt(k12hat(pts1, pts2, datapoly, steps12)/pi))
 
-
   ## Voronoi areas.
   vd0 <- vd1 <- vd2 <- null.xylist
   if (!is.null(param$distribs$vd0))
