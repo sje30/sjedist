@@ -31,7 +31,7 @@ sje.vorarea <- function(pts, w, breaks, need.v=FALSE) {
     warning(paste("maximum area is", max(validareas)))
   }
   
-  fs <- hist(validareas, breaks=breaks, plot=FALSE, freq=FALSE )
+  fs <- hist(validareas, breaks=breaks, plot=FALSE)
   ahy <- cumsum(fs$counts)/ sum(fs$counts)
 
   if (!need.v)
@@ -53,7 +53,7 @@ sje.dellens <- function(pts, w, v=NULL, ds.breaks) {
   dellens <- pmin(dellens.acc, ds.max)
 
   ## Now bin the segments into a histogram.
-  ds <- hist(dellens, breaks=ds.breaks, plot=FALSE, freq=FALSE )
+  ds <- hist(dellens, breaks=ds.breaks, plot=FALSE)
   dellencdf <- cumsum(ds$counts)/ sum(ds$counts)
 
   ## By naming 
@@ -689,7 +689,7 @@ sjespatdists.old <- function (hpts, xmin, xmax, ymin, ymax, note, plot=F) {
     warning(paste("maximum area is", max(validareas)))
   }
   
-  fs <- hist(validareas, breaks=sje.vorareabins, plot=FALSE, freq=FALSE )
+  fs <- hist(validareas, breaks=sje.vorareabins, plot=FALSE)
   ahx <- fs$mids; ahy <- cumsum(fs$counts)/ sum(fs$counts)
 
   ## Central angles:
@@ -700,7 +700,7 @@ sjespatdists.old <- function (hpts, xmin, xmax, ymin, ymax, note, plot=F) {
   dellens <- pmin(dellens.acc, sje.dellenmax)
   
   ##cat(paste("dellens number of elements: ", length(dellens), "\n"))
-  ds <- hist(dellens, breaks=sje.dellenbins, plot=FALSE, freq=FALSE )
+  ds <- hist(dellens, breaks=sje.dellenbins, plot=FALSE )
   dellencdf <- cumsum(ds$counts)/ sum(ds$counts)
 
   ## Get NN distances from Voronoi information.
