@@ -356,7 +356,8 @@ plot.spat.ri3 <- function(ri3, cex=0.5, ylim=range(ri3),
   stripchart(res, vert=T, pch=19, method="jitter",
              cex=cex,
              ylim=ylim,
-             group.names=c("ON", "OFF", "ON+OFF"),
+             ##group.names=c("ON", "OFF", "ON+OFF"),
+             group.names=c("1", "2", "1+2"),
              main="",
              ylab="regularity index")
   
