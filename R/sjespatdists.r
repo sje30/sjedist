@@ -350,6 +350,7 @@ calc.ri3 <- function(on, of, w) {
 }
 
 plot.spat.ri3 <- function(ri3, cex=0.5, ylim=range(ri3),
+                          ylab='regularity index',
                           real.col = 'red', ...) {
   ## Plot the regularity indexes.
   res <- list(on=ri3[-1,1], of=ri3[-1,2],on.off=ri3[-1,3])
@@ -359,7 +360,7 @@ plot.spat.ri3 <- function(ri3, cex=0.5, ylim=range(ri3),
              ##group.names=c("ON", "OFF", "ON+OFF"),
              group.names=c("1", "2", "1+2"),
              main="",
-             ylab="regularity index")
+             ylab=ylab)
   
   median.sim <- apply(ri3[-1,], 2, median)
   i <- 1:3; dx <- 0.3;
