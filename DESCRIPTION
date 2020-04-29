@@ -1,0 +1,8 @@
+Package: sjedist
+Version: 0.1
+Title: Spatial distributions (SJE)
+Author: Stephen Eglen <stephen@gnu.org>
+Maintainer: Stephen Eglen <stephen@gnu.org>
+Depends: R, sjevor, splancs
+Description: Compute the spatial distributions for mosaic fitting.
+License: GPL

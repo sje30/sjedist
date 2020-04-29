@@ -1,0 +1,24 @@
+2007-08-27  Stephen Eglen  <stephen@gnu.org>
+
+	* R/sjespatdists.r (plot.spat.ri3): change group.names to 1,2,1+2
+
+2007-07-23  Stephen Eglen  <stephen@gnu.org>
+
+	* DESCRIPTION (License): Add dependence on sjevor,splancs
+	packages.
+
+	* R/sjespatdists.r (sjespatdists.old): Remove freq=FALSE from hist
+	call as not needed when plot=FALSE.
+
+2002-11-01  Stephen Eglen  <eglen@thalamus.wustl.edu>
+
+	* sjespatdists.r (sjespatdists): Return valid areas and nearest
+	neigh distances, so that other routines can work on these values
+	easily.
+
+2002-06-18  Stephen Eglen  <eglen@thalamus.wustl.edu>
+
+	* sjespatdists.r (sje.findallranks): Allow choice of ranking
+	methods to be used.
+	(plotsumresp): Show experimental result as red line.
+
