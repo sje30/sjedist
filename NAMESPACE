@@ -1,0 +1,3 @@
+# This is default NAMESPACE file created.
+# Export all names except those beginning with dot.
+exportPattern("^[^\\.]")
